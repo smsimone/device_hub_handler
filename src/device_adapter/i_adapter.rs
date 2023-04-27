@@ -2,21 +2,30 @@ use serde::{Deserialize, Serialize};
 
 use super::{adb_adapter::AdbAdapter, ios_adapter::IosAdapter};
 
-pub trait IAdapter: Sized {
-    fn wake_up_device(device: &Device);
-
-    fn send_keyevent(device: &Device, key_event: &String);
+pub enum ScreenRequest {
+    On,
+    Off,
 }
 
-pub fn get_adapter(os_type: OsType) -> Result<dyn IAdapter, ()> {
-    match os_type {
-        OsType::Android => return Ok(AdbAdapter {}),
-        OsType::Ios => return Ok(IosAdapter {}),
+pub trait IAdapter {
+    fn toggle_screen(&self, request: &ScreenRequest);
+
+    fn unlock_device(&self);
+
+    fn open_app(&self, app_name: &String);
+
+    fn send_keyevent(&self, key_event: &String);
+}
+
+pub fn get_adapter(device: Device) -> Box<dyn IAdapter> {
+    match device.os_type {
+        OsType::Android => return Box::new(AdbAdapter { device }),
+        OsType::Ios => return Box::new(IosAdapter { device }),
         OsType::Invalid => todo!(),
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Device {
     pub name: String,
     pub id: String,
@@ -24,7 +33,7 @@ pub struct Device {
     pub emulator: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum OsType {
     Android,
     Ios,

@@ -1,15 +1,17 @@
-use std::process::Command;
+use std::{io::Error, process::Command};
 
-pub fn parse_command(command: &String) -> Command {
+pub fn execute_command(command: &String) -> Result<String, Error> {
     let data = command
         .split(" ")
         .map(|s| String::from(s))
         .collect::<Vec<String>>();
 
-    let mut command = &Command::new(&data[0]);
+    let mut command = &mut Command::new(&data[0]);
     for i in 1..data.len() {
-        command = (*command).arg(String::from(data[i]));
+        command = (*command).arg(&data[i]);
     }
 
-    return *command;
+    return command
+        .output()
+        .map(|d| String::from_utf8(d.stdout).expect("Invalid string"));
 }

@@ -1,22 +1,27 @@
-use crate::utils::command_parser::parse_command;
+use crate::utils::command_parser::execute_command;
 
-use super::i_adapter::IAdapter;
+use super::i_adapter::{Device, IAdapter, ScreenRequest};
 
-pub struct IosAdapter {}
+pub struct IosAdapter {
+    pub device: Device,
+}
 
 impl IAdapter for IosAdapter {
-    fn wake_up_device(device: &super::i_adapter::Device) {
-        todo!();
-    }
+    fn toggle_screen(&self, request: &ScreenRequest) {}
 
-    fn send_keyevent(device: &super::i_adapter::Device, key_event: &String) {
-        let mut command = parse_command(&String::from(format!(
+    fn unlock_device(&self) {}
+
+    fn open_app(&self, app_name: &String) {}
+
+    fn send_keyevent(&self, key_event: &String) {
+        let command = execute_command(&String::from(format!(
             "adb -s {} shell input keyevent {}",
-            &device.id, key_event
+            self.device.id, key_event
         )));
-        command.output().expect(&String::from(format!(
-            "Non è stato possibile inviare il comando {} a {}",
-            key_event, device.name
-        )));
+
+        match command {
+            Ok(_) => println!("Woke up device {}", self.device.name),
+            Err(err) => println!("Failed to wake ios device: {}", err),
+        }
     }
 }

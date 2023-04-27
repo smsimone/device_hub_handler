@@ -15,6 +15,8 @@ pub trait IAdapter {
     fn open_app(&self, app_name: &String);
 
     fn send_keyevent(&self, key_event: &String);
+
+    fn get_device_status(&self) -> DeviceStatus;
 }
 
 pub fn get_adapter(device: Device) -> Box<dyn IAdapter> {
@@ -31,6 +33,13 @@ pub struct Device {
     pub id: String,
     pub os_type: OsType,
     pub emulator: bool,
+}
+
+#[derive(Debug)]
+pub enum DeviceStatus {
+    Dozing,
+    Awake,
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]

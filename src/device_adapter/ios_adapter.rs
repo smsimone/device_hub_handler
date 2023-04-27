@@ -24,4 +24,8 @@ impl IAdapter for IosAdapter {
             Err(err) => println!("Failed to wake ios device: {}", err),
         }
     }
+
+    fn get_device_status(&self) -> super::i_adapter::DeviceStatus {
+        todo!()
+    }
 }

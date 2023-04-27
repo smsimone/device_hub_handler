@@ -1,17 +1,10 @@
 use crate::utils::command_parser::execute_command;
 
-use super::i_adapter::{Device, IAdapter, ScreenRequest};
+use super::i_adapter::{Device, DeviceStatus, IAdapter, ScreenRequest};
 use regex::Regex;
 
 pub struct AdbAdapter {
     pub device: Device,
-}
-
-#[derive(Debug)]
-enum DeviceStatus {
-    Dozing,
-    Awake,
-    Unknown,
 }
 
 trait FromString: Sized {
@@ -73,12 +66,16 @@ impl AdbAdapter {
 }
 
 impl IAdapter for AdbAdapter {
-    fn toggle_screen(&self, request: &ScreenRequest) {
-        let device_status = self.dump_sys_value::<DeviceStatus>(
+    fn get_device_status(&self) -> DeviceStatus {
+        self.dump_sys_value::<DeviceStatus>(
             &String::from("power"),
             &String::from("mWakefulness"),
             DeviceStatus::Unknown,
-        );
+        )
+    }
+
+    fn toggle_screen(&self, request: &ScreenRequest) {
+        let device_status = self.get_device_status();
 
         match (request, device_status) {
             (ScreenRequest::On, DeviceStatus::Dozing) => self.send_keyevent(&String::from("26")),

@@ -17,6 +17,9 @@ pub trait IAdapter {
     fn send_keyevent(&self, key_event: &String);
 
     fn get_device_status(&self) -> DeviceStatus;
+
+    /// In case of [Ok] returns the name of the bundle installed
+    fn install_bundle(&self, bundle_path: &String) -> Result<String, String>;
 }
 
 pub fn get_adapter(device: Device) -> Box<dyn IAdapter> {

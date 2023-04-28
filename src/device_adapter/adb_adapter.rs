@@ -1,10 +1,28 @@
-use crate::utils::command_parser::execute_command;
+use crate::utils::{
+    apks_helper,
+    command_executor::{self, exec},
+    env_helper::ENV_DATA,
+};
+use std::{fs::remove_file, str::FromStr};
 
 use super::i_adapter::{Device, DeviceStatus, IAdapter, ScreenRequest};
 use regex::Regex;
+use strum_macros::EnumString;
 
 pub struct AdbAdapter {
     pub device: Device,
+}
+
+#[derive(Debug, EnumString)]
+enum Abi {
+    #[strum(serialize = "armeabi-v7a")]
+    ArmeabiV7a,
+    #[strum(serialize = "arm64-v8a")]
+    Arm64V8a,
+    #[strum(serialize = "x86")]
+    X86,
+    #[strum(serialize = "x86_64")]
+    X86_64,
 }
 
 trait FromString: Sized {
@@ -38,10 +56,10 @@ impl AdbAdapter {
     where
         T: FromString,
     {
-        let result = execute_command(&String::from(format!(
+        let result = exec(&format!(
             "adb -s {} shell dumpsys {} | grep {}",
             self.device.id, key, value_key
-        )));
+        ));
 
         match result {
             Ok(output) => {
@@ -56,12 +74,83 @@ impl AdbAdapter {
             }
             Err(err) => {
                 println!(
-                    "Failed to get current screen on for {}: {}",
+                    "[{}] Failed to get current screen on: {}",
                     self.device.name, err
                 );
                 return default_val;
             }
         };
+    }
+
+    /// Checks wether the app is already installed or not
+    fn is_app_already_installed(&self, package_name: &String) -> Result<bool, String> {
+        return command_executor::exec(&format!(
+            "adb -s {} shell pm list packages {}",
+            self.device.id, package_name
+        ))
+        .map(|res| !res.is_empty())
+        .map_err(|err| {
+            format!(
+                "[{}] Failed to check if app {} is installed: {}",
+                self.device.name,
+                package_name,
+                err.to_string()
+            )
+        });
+    }
+
+    /// Gets the architecture for the device connected
+    fn get_device_architecture(&self) -> Result<Abi, String> {
+        let output = command_executor::exec(&format!(
+            "adb -s {} shell getprop ro.product.cpu.abi",
+            self.device.id
+        ))
+        .map(|val| val.trim().to_owned())
+        .map_err(|err| err.to_string())?;
+
+        return Abi::from_str(&output).map_err(|err| {
+            format!(
+                "[{}] Invalid abi {}: {}",
+                self.device.name,
+                &output,
+                err.to_string()
+            )
+        });
+    }
+
+    /// Extracts the apk for the current device's architecture given the aab file
+    pub fn extract_apk(&self, aab_path: &String) -> Result<String, String> {
+        let arch = self.get_device_architecture()?;
+        println!("[{}] Device has arch {:?}", &self.device.name, &arch);
+
+        let output_path = format!(
+            "{}/{}.apks",
+            ENV_DATA.lock().unwrap().extract_output_dir,
+            &self.device.id
+        );
+
+        println!(
+            "[{}] Extracting apks into {}",
+            self.device.name, &output_path
+        );
+
+        let config = &ENV_DATA.lock().unwrap().android_config;
+
+        return command_executor::exec(&format!(
+            "bundletool build-apks --bundle={} --output={} --connected-device --device-id {} --ks={} --ks-key-alias={} --key-pass=pass:{} --ks-pass=pass:{}",
+            &aab_path, &output_path, self.device.id,config.keystore_path,  config.keystore_alias, config.keystore_pass, config.keystore_pass
+        ))
+            .map(|_| {
+                println!("[{}] Extracted apks in {}", self.device.name, &output_path);
+                String::from(&output_path)
+            })
+            .map_err(|err| {
+                format!(
+                    "[{}] failed to extract apk: {}",
+                    self.device.name,
+                    err.to_string()
+                )
+            });
     }
 }
 
@@ -81,10 +170,10 @@ impl IAdapter for AdbAdapter {
             (ScreenRequest::On, DeviceStatus::Dozing) => self.send_keyevent(&String::from("26")),
             (ScreenRequest::Off, DeviceStatus::Awake) => self.send_keyevent(&String::from("26")),
             (_, DeviceStatus::Unknown) => println!(
-                "Unkown device status for {}, cannot do anything",
+                "[{}] Unkown device status, cannot do anything",
                 self.device.name
             ),
-            (_, _) => println!("Device {} is already ok", self.device.name),
+            (_, _) => println!("[{}] Screen is already set up", self.device.name),
         }
     }
 
@@ -103,24 +192,91 @@ impl IAdapter for AdbAdapter {
     }
 
     fn open_app(&self, app_name: &String) {
-        let command = execute_command(&String::from(format!(
-            "adb -s {} -n {}",
-            self.device.id, app_name
-        )));
+        let command = exec(&format!(
+            "adb -s {} shell am start -n {}/{}.MainActivity",
+            self.device.id, app_name, app_name
+        ));
         match command {
-            Ok(_) => println!("App {} executed on {}", app_name, self.device.name),
-            Err(err) => println!("Failed to open app on {}: {}", self.device.name, err),
+            Ok(_) => println!("[{}] App {} executed", self.device.name, app_name),
+            Err(err) => println!("[{}] Failed to open app: {}", self.device.name, err),
         }
     }
 
     fn send_keyevent(&self, key_event: &String) {
-        let command = execute_command(&String::from(format!(
+        let command = exec(&format!(
             "adb -s {} shell input keyevent {}",
             self.device.id, key_event
-        )));
+        ));
         match command {
-            Ok(_) => println!("Sent keyevent {} to {}", key_event, self.device.name),
-            Err(err) => println!("Failed to wake ios device: {}", err),
+            Ok(_) => println!("[{}] Sent keyevent {}", self.device.name, key_event),
+            Err(err) => println!("[{}] Failed to wake device: {}", self.device.name, err),
         }
+    }
+
+    fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
+        let extracted_apks_path = self.extract_apk(bundle_path)?;
+
+        println!(
+            "[{}] Extracted apk at {}",
+            self.device.name, &extracted_apks_path
+        );
+
+        let package_name = match apks_helper::extract_package_name(&extracted_apks_path) {
+            Ok(package) => package,
+            Err(err) => {
+                println!(
+                    "[{}] Failed to extract package: {}",
+                    self.device.name,
+                    err.to_string()
+                );
+                return Err(err.to_string());
+            }
+        };
+
+        self.unlock_device();
+        if self.is_app_already_installed(&package_name.to_string())? {
+            println!(
+                "[{}] App {} is already installed. Uninstalling old version..",
+                self.device.name, &package_name
+            );
+            let result = command_executor::exec(&format!(
+                "adb -s {} uninstall {}",
+                self.device.id, package_name
+            ))
+            .map(|_| println!("[{}] Previous app uninstalled", self.device.name))
+            .map_err(|err| {
+                format!(
+                    "[{}] Could not uninstall app: {}",
+                    self.device.name,
+                    err.to_string()
+                )
+            });
+            if result.is_err() {
+                return Err(result.unwrap_err());
+            }
+        }
+
+        println!("[{}] Installing app", self.device.name);
+        return command_executor::exec(&format!(
+            "bundletool install-apks --apks={} --device-id {}",
+            extracted_apks_path, self.device.id,
+        ))
+        .map(|_| {
+            println!("[{}] Installed apk", self.device.name);
+            match remove_file(&extracted_apks_path) {
+                Ok(_) => println!(
+                    "[{}] Removed file {}",
+                    self.device.name, &extracted_apks_path
+                ),
+                Err(err) => println!(
+                    "[{}] Failed to remove file {}: {}",
+                    self.device.name,
+                    &extracted_apks_path,
+                    err.to_string()
+                ),
+            }
+            package_name
+        })
+        .map_err(|err| format!("Failed to install apk: {}", err.to_string()));
     }
 }

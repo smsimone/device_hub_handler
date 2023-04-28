@@ -1,19 +1,6 @@
-use std::{
-    io::{self, stdout, Error},
-    sync::mpsc,
-    time::Duration,
-};
+use std::{io::Error, path::Path};
 
-use crossterm::{
-    event::EnableMouseCapture,
-    execute,
-    terminal::{enable_raw_mode, EnterAlternateScreen},
-};
-use tui::{
-    backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
-    Terminal,
-};
+use dotenv::dotenv;
 
 use crate::device_adapter::adapter::get_devices;
 
@@ -23,26 +10,25 @@ mod utils;
 fn main() -> Result<(), Error> {
     let devices = get_devices();
 
-    enable_raw_mode()?;
+    let aab_path = String::from(
+        "/Users/smaso/Development/toduba/app/build/app/outputs/bundle/release/app-release.aab",
+    );
 
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    terminal.clear()?;
+    if !Path::new(&aab_path).exists() {
+        panic!("The path pointing to the aab file is wrong");
+    }
 
-    terminal.draw(|rect| {
-        let size = rect.size();
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(2)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Min(2),
-                Constraint::Length(3),
-            ])
-            .split(size);
-    });
+    match dotenv().ok() {
+        None => panic!("Missing .env file"),
+        Some(_) => {}
+    }
+
+    devices
+        .iter()
+        .for_each(|adapter| match adapter.install_bundle(&aab_path) {
+            Ok(package_name) => adapter.open_app(&package_name),
+            Err(err) => println!("Failed: {}", err),
+        });
 
     // devices.iter().for_each(|d| {
     //     d.unlock_device();

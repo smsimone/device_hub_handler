@@ -1,4 +1,4 @@
-use crate::utils::command_parser::execute_command;
+use crate::utils::command_executor::exec;
 
 use super::i_adapter::{Device, IAdapter, ScreenRequest};
 
@@ -14,10 +14,10 @@ impl IAdapter for IosAdapter {
     fn open_app(&self, app_name: &String) {}
 
     fn send_keyevent(&self, key_event: &String) {
-        let command = execute_command(&String::from(format!(
+        let command = exec(&format!(
             "adb -s {} shell input keyevent {}",
             self.device.id, key_event
-        )));
+        ));
 
         match command {
             Ok(_) => println!("Woke up device {}", self.device.name),
@@ -26,6 +26,10 @@ impl IAdapter for IosAdapter {
     }
 
     fn get_device_status(&self) -> super::i_adapter::DeviceStatus {
+        todo!()
+    }
+
+    fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
         todo!()
     }
 }

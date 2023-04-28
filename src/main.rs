@@ -1,6 +1,13 @@
-use std::{io::Error, path::Path};
+use std::{
+    fs::{create_dir, read_dir, DirEntry},
+    io::Error,
+    path::Path,
+    process::exit,
+};
 
 use dotenv::dotenv;
+use log::{error, info};
+use utils::env_helper::ENV_DATA;
 
 use crate::device_adapter::adapter::get_devices;
 
@@ -8,7 +15,7 @@ mod device_adapter;
 mod utils;
 
 fn main() -> Result<(), Error> {
-    let devices = get_devices();
+    env_logger::init();
 
     let aab_path = String::from(
         "/Users/smaso/Development/toduba/app/build/app/outputs/bundle/release/app-release.aab",
@@ -18,21 +25,44 @@ fn main() -> Result<(), Error> {
         panic!("The path pointing to the aab file is wrong");
     }
 
+    let extract_path = String::from(&ENV_DATA.lock().unwrap().extract_output_dir);
+
+    let dir_path = Path::new(&extract_path);
+    if !dir_path.exists() {
+        match create_dir(dir_path) {
+            Ok(_) => info!("Created directory {}", &extract_path),
+            Err(err) => error!("Failed to create directory: {}", err),
+        }
+    } else {
+        if !(Path::new(&extract_path).is_dir()) {
+            error!("The path {} is not a directory", &extract_path);
+            exit(1);
+        }
+
+        let content = match read_dir(&extract_path) {
+            Ok(val) => val,
+            Err(_) => panic!("Could not read the directory"),
+        };
+        if content.collect::<Vec<Result<DirEntry, Error>>>().len() != 0 {
+            error!(
+                "The directory {} is not empty, please delete it first",
+                &extract_path
+            );
+            exit(1);
+        }
+    }
+
     match dotenv().ok() {
         None => panic!("Missing .env file"),
         Some(_) => {}
     }
 
-    devices
+    get_devices()
         .iter()
         .for_each(|adapter| match adapter.install_bundle(&aab_path) {
             Ok(package_name) => adapter.open_app(&package_name),
-            Err(err) => println!("Failed: {}", err),
+            Err(err) => error!("Failed: {}", err),
         });
 
-    // devices.iter().for_each(|d| {
-    //     d.unlock_device();
-    //     d.open_app(&String::from("it.clikapp.toduba"))
-    // });
     Ok(())
 }

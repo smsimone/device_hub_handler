@@ -3,11 +3,13 @@ use std::{
     path::Path,
 };
 
+use log::{error, info};
+
 use super::{command_executor, env_helper::ENV_DATA};
 
 /// Extracts the apks file in the path given and returns the app package name
 pub fn extract_package_name(apks_path: &String) -> Result<String, String> {
-    println!("Extracting {}", apks_path);
+    info!("Extracting {}", apks_path);
     let extraction_directory = extract_apks(apks_path)?;
 
     let path = Path::new(&extraction_directory).join("splits");
@@ -32,8 +34,8 @@ pub fn extract_package_name(apks_path: &String) -> Result<String, String> {
     return command_executor::exec(&format!("aapt2 dump packagename {}", &apk_file_path))
         .map(|res| {
             match remove_dir_all(&extraction_directory) {
-                Ok(_) => println!("Removed directory {}", &extraction_directory),
-                Err(err) => println!(
+                Ok(_) => info!("Removed directory {}", &extraction_directory),
+                Err(err) => error!(
                     "Failed to remove directory {}: {}",
                     &extraction_directory, err
                 ),
@@ -72,8 +74,11 @@ fn extract_apks(apks_path: &String) -> Result<String, String> {
         apks_path, extraction_directory
     ))
     .map(|_| {
-        println!("Extracted apks in path {}", extraction_directory);
+        info!("Extracted apks in path {}", extraction_directory);
         extraction_directory
     })
-    .map_err(|err| err.to_string())
+    .map_err(|err| {
+        error!("Failed to extract apks: {}", err.to_string());
+        err.to_string()
+    })
 }

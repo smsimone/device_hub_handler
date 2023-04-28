@@ -1,11 +1,14 @@
-use crate::utils::{
-    apks_helper,
-    command_executor::{self, exec},
-    env_helper::ENV_DATA,
+use crate::{
+    device_adapter::i_adapter::{Device, DeviceStatus, IAdapter, ScreenRequest},
+    utils::{
+        apks_helper,
+        command_executor::{self, exec},
+        env_helper::ENV_DATA,
+    },
 };
 use std::{fs::remove_file, str::FromStr};
 
-use super::i_adapter::{Device, DeviceStatus, IAdapter, ScreenRequest};
+use log::{error, info, warn};
 use regex::Regex;
 use strum_macros::EnumString;
 
@@ -73,7 +76,7 @@ impl AdbAdapter {
                     .map_or(default_val, |m| T::from_string(m.as_str()));
             }
             Err(err) => {
-                println!(
+                error!(
                     "[{}] Failed to get current screen on: {}",
                     self.device.name, err
                 );
@@ -121,7 +124,7 @@ impl AdbAdapter {
     /// Extracts the apk for the current device's architecture given the aab file
     pub fn extract_apk(&self, aab_path: &String) -> Result<String, String> {
         let arch = self.get_device_architecture()?;
-        println!("[{}] Device has arch {:?}", &self.device.name, &arch);
+        info!("[{}] Device has arch {:?}", &self.device.name, &arch);
 
         let output_path = format!(
             "{}/{}.apks",
@@ -129,7 +132,7 @@ impl AdbAdapter {
             &self.device.id
         );
 
-        println!(
+        info!(
             "[{}] Extracting apks into {}",
             self.device.name, &output_path
         );
@@ -141,7 +144,7 @@ impl AdbAdapter {
             &aab_path, &output_path, self.device.id,config.keystore_path,  config.keystore_alias, config.keystore_pass, config.keystore_pass
         ))
             .map(|_| {
-                println!("[{}] Extracted apks in {}", self.device.name, &output_path);
+                info!("[{}] Extracted apks in {}", self.device.name, &output_path);
                 String::from(&output_path)
             })
             .map_err(|err| {
@@ -169,11 +172,11 @@ impl IAdapter for AdbAdapter {
         match (request, device_status) {
             (ScreenRequest::On, DeviceStatus::Dozing) => self.send_keyevent(&String::from("26")),
             (ScreenRequest::Off, DeviceStatus::Awake) => self.send_keyevent(&String::from("26")),
-            (_, DeviceStatus::Unknown) => println!(
+            (_, DeviceStatus::Unknown) => warn!(
                 "[{}] Unkown device status, cannot do anything",
                 self.device.name
             ),
-            (_, _) => println!("[{}] Screen is already set up", self.device.name),
+            (_, _) => info!("[{}] Screen is already set up", self.device.name),
         }
     }
 
@@ -197,8 +200,8 @@ impl IAdapter for AdbAdapter {
             self.device.id, app_name, app_name
         ));
         match command {
-            Ok(_) => println!("[{}] App {} executed", self.device.name, app_name),
-            Err(err) => println!("[{}] Failed to open app: {}", self.device.name, err),
+            Ok(_) => info!("[{}] App {} executed", self.device.name, app_name),
+            Err(err) => error!("[{}] Failed to open app: {}", self.device.name, err),
         }
     }
 
@@ -208,15 +211,15 @@ impl IAdapter for AdbAdapter {
             self.device.id, key_event
         ));
         match command {
-            Ok(_) => println!("[{}] Sent keyevent {}", self.device.name, key_event),
-            Err(err) => println!("[{}] Failed to wake device: {}", self.device.name, err),
+            Ok(_) => info!("[{}] Sent keyevent {}", self.device.name, key_event),
+            Err(err) => error!("[{}] Failed to wake device: {}", self.device.name, err),
         }
     }
 
     fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
         let extracted_apks_path = self.extract_apk(bundle_path)?;
 
-        println!(
+        info!(
             "[{}] Extracted apk at {}",
             self.device.name, &extracted_apks_path
         );
@@ -224,7 +227,7 @@ impl IAdapter for AdbAdapter {
         let package_name = match apks_helper::extract_package_name(&extracted_apks_path) {
             Ok(package) => package,
             Err(err) => {
-                println!(
+                error!(
                     "[{}] Failed to extract package: {}",
                     self.device.name,
                     err.to_string()
@@ -235,7 +238,7 @@ impl IAdapter for AdbAdapter {
 
         self.unlock_device();
         if self.is_app_already_installed(&package_name.to_string())? {
-            println!(
+            info!(
                 "[{}] App {} is already installed. Uninstalling old version..",
                 self.device.name, &package_name
             );
@@ -243,7 +246,7 @@ impl IAdapter for AdbAdapter {
                 "adb -s {} uninstall {}",
                 self.device.id, package_name
             ))
-            .map(|_| println!("[{}] Previous app uninstalled", self.device.name))
+            .map(|_| info!("[{}] Previous app uninstalled", self.device.name))
             .map_err(|err| {
                 format!(
                     "[{}] Could not uninstall app: {}",
@@ -256,19 +259,19 @@ impl IAdapter for AdbAdapter {
             }
         }
 
-        println!("[{}] Installing app", self.device.name);
+        info!("[{}] Installing app", self.device.name);
         return command_executor::exec(&format!(
             "bundletool install-apks --apks={} --device-id {}",
             extracted_apks_path, self.device.id,
         ))
         .map(|_| {
-            println!("[{}] Installed apk", self.device.name);
+            info!("[{}] Installed apk", self.device.name);
             match remove_file(&extracted_apks_path) {
-                Ok(_) => println!(
+                Ok(_) => info!(
                     "[{}] Removed file {}",
                     self.device.name, &extracted_apks_path
                 ),
-                Err(err) => println!(
+                Err(err) => error!(
                     "[{}] Failed to remove file {}: {}",
                     self.device.name,
                     &extracted_apks_path,

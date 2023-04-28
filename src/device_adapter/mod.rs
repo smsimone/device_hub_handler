@@ -1,4 +1,4 @@
 pub mod adapter;
-pub mod adb_adapter;
+pub mod android;
 pub mod i_adapter;
-pub mod ios_adapter;
+pub mod ios;

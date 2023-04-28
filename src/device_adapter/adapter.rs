@@ -17,7 +17,7 @@ pub fn get_devices() -> Vec<Box<dyn IAdapter>> {
     let devices: Vec<Box<dyn IAdapter>> = data
         .iter()
         .map(|d| Device::from_parsed(d))
-        // FIXME: right now it's the android adapter is the only one working
+        // FIXME: right now the android adapter is the only one working
         .filter(|d| d.os_type == OsType::Android)
         .map(|d| get_adapter(d))
         .collect();

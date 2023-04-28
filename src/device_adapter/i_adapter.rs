@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{adb_adapter::AdbAdapter, ios_adapter::IosAdapter};
+use super::{android::adapter::AdbAdapter, ios::adapter::IosAdapter};
 
 pub enum ScreenRequest {
     On,

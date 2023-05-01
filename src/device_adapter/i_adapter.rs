@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 use super::{android::adapter::AdbAdapter, ios::adapter::IosAdapter};
@@ -8,6 +10,8 @@ pub enum ScreenRequest {
 }
 
 pub trait IAdapter {
+    fn get_device_name(&self) -> String;
+
     fn toggle_screen(&self, request: &ScreenRequest);
 
     fn unlock_device(&self);
@@ -43,6 +47,16 @@ pub enum DeviceStatus {
     Dozing,
     Awake,
     Unknown,
+}
+
+impl Display for DeviceStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceStatus::Dozing => f.write_str("Dozing"),
+            DeviceStatus::Awake => f.write_str("Awake"),
+            DeviceStatus::Unknown => f.write_str("Unknown"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]

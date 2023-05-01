@@ -3,11 +3,12 @@ use std::process::Command;
 use super::i_adapter::{get_adapter, DecodedDevice, Device, IAdapter, OsType};
 
 pub fn get_devices() -> Vec<Box<dyn IAdapter>> {
-    let mut command = Command::new("flutter");
-    command.arg("devices").arg("--machine");
-    let output = command.output().expect("Something went wrong");
-
-    let bytes = output.stdout;
+    let bytes = Command::new("flutter")
+        .arg("devices")
+        .arg("--machine")
+        .output()
+        .expect("Something went wrong")
+        .stdout;
 
     let json_content = String::from_utf8(bytes).expect("The obtained string is not valid");
 

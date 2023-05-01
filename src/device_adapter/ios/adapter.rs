@@ -43,4 +43,8 @@ impl IAdapter for IosAdapter {
     fn install_bundle(&self, _bundle_path: &String) -> Result<String, String> {
         todo!()
     }
+
+    fn get_device_name(&self) -> String {
+        todo!()
+    }
 }

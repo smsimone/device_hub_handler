@@ -1,12 +1,14 @@
 use std::{
-    fs::{create_dir, read_dir, DirEntry},
+    fs::{create_dir, read_dir, remove_dir_all, DirEntry},
     io::Error,
     path::Path,
     process::exit,
 };
 
+use dialoguer::Confirm;
+
 use dotenv::dotenv;
-use log::{error, info};
+use log::{error, info, warn};
 use utils::{command_executor::command_exists, env_helper::ENV_DATA};
 
 use crate::device_adapter::adapter::get_devices;
@@ -47,11 +49,29 @@ fn main() -> Result<(), Error> {
             Err(_) => panic!("Could not read the directory"),
         };
         if content.collect::<Vec<Result<DirEntry, Error>>>().len() != 0 {
-            error!(
-                "The directory {} is not empty, please delete it first",
-                &extract_path
-            );
-            exit(1);
+            let should_erase = Confirm::new()
+                .with_prompt(format!(
+                    "The directory {} is not empty, do you want to delete its content?",
+                    &extract_path
+                ))
+                .interact()?;
+
+            if should_erase {
+                match remove_dir_all(&extract_path) {
+                    Ok(_) => info!("Directory {} erased", &extract_path),
+                    Err(err) => {
+                        error!(
+                            "Failed to erase directory {}: {}",
+                            &extract_path,
+                            err.to_string()
+                        );
+                        exit(1);
+                    }
+                }
+            } else {
+                warn!("Cannot continue if {} is not empty", &extract_path);
+                exit(1);
+            }
         }
     }
 
@@ -71,8 +91,14 @@ fn main() -> Result<(), Error> {
 }
 
 fn validate_depdencies() {
+    // FIXME: should remove this dependency to use just adb and idb
+    // Used to find all connected devices
+    if command_exists(&"flutter".to_string()).is_err() {
+        exit(1);
+    }
+
     // Used to interact with android devices
-    if command_exists(&"adb version".to_string()).is_err() {
+    if command_exists(&"adb".to_string()).is_err() {
         exit(1);
     }
 

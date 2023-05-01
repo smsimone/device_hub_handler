@@ -282,4 +282,8 @@ impl IAdapter for AdbAdapter {
         })
         .map_err(|err| format!("Failed to install apk: {}", err.to_string()));
     }
+
+    fn get_device_name(&self) -> String {
+        String::from(&self.device.name)
+    }
 }

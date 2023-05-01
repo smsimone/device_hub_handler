@@ -10,7 +10,7 @@ pub struct IosAdapter {
 }
 
 impl IAdapter for IosAdapter {
-    fn toggle_screen(&self, request: &ScreenRequest) {}
+    fn toggle_screen(&self, _request: &ScreenRequest) {}
 
     fn unlock_device(&self) {}
 
@@ -40,7 +40,7 @@ impl IAdapter for IosAdapter {
         todo!()
     }
 
-    fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
+    fn install_bundle(&self, _bundle_path: &String) -> Result<String, String> {
         todo!()
     }
 }

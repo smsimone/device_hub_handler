@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumString;
 
 use super::{android::adapter::AdbAdapter, ios::adapter::IosAdapter};
 
@@ -59,10 +60,13 @@ impl Display for DeviceStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy, EnumString)]
 pub enum OsType {
+    #[strum(serialize = "android")]
     Android,
+    #[strum(serialize = "ios")]
     Ios,
+    #[strum(serialize = "none")]
     Invalid,
 }
 

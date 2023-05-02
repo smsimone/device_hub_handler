@@ -40,7 +40,11 @@ impl IAdapter for IosAdapter {
         todo!()
     }
 
-    fn install_bundle(&self, _bundle_path: &String) -> Result<String, String> {
+    fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
+        if !bundle_path.ends_with(".ipa") {
+            error!("Invalid bundle for ios device: {}", &bundle_path);
+            return Err(format!("Invalid bundle path: {}", &bundle_path));
+        }
         todo!()
     }
 

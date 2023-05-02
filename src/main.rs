@@ -1,17 +1,21 @@
+use clap::{Arg, Command};
+use device_adapter::i_adapter::OsType;
 use std::{
     fs::{create_dir, read_dir, remove_dir_all, DirEntry},
     io::Error,
     path::Path,
     process::exit,
+    str::FromStr,
 };
 
 use dialoguer::Confirm;
 
-use dotenv::dotenv;
 use log::{error, info, warn};
-use utils::{command_executor::command_exists, env_helper::ENV_DATA};
-
-use crate::device_adapter::adapter::get_devices;
+use utils::{
+    command_executor::command_exists,
+    commands::{find_devices, install_bundle},
+    env_helper::ENV_DATA,
+};
 
 mod device_adapter;
 mod utils;
@@ -20,23 +24,92 @@ fn main() -> Result<(), Error> {
     env_logger::init();
 
     validate_depdencies();
-
-    let aab_path = String::from(
-        "/Users/smaso/Development/toduba/app/build/app/outputs/bundle/release/app-release.aab",
-    );
-
-    if !Path::new(&aab_path).exists() {
-        error!("The path given to the aab file does not point to anything");
-        exit(1);
+    match check_extraction_path() {
+        Ok(_) => {}
+        Err(err) => {
+            error!("Could not check extraction path: {}", err.to_string());
+            exit(1);
+        }
     }
 
+    let matches = Command::new("dhh")
+        .author("smsimone")
+        .version("0.0.1")
+        .subcommand(
+            Command::new("find_devices")
+                .about("Find all connected devices")
+                .arg(
+                    Arg::new("filter")
+                        .short('f')
+                        .long("filter")
+                        .help("Select the type of device you want to find")
+                        .required(false)
+                        .value_parser(["android", "ios"]),
+                ),
+        )
+        .subcommand(
+            Command::new("install_bundle")
+                .about("Install the given bundle to the devices")
+                .arg(
+                    Arg::new("aab_path")
+                        .short('a')
+                        .long("aab_path")
+                        .help("Path to the aab file that must be installed")
+                        .required(true),
+                ),
+        )
+        .get_matches();
+
+    match matches.subcommand() {
+        Some(("find_devices", args)) => {
+            let filter = args.get_one::<String>("filter").unwrap();
+            let os_type = OsType::from_str(&filter)
+                .map(|f| if f == OsType::Invalid { None } else { Some(f) })
+                .unwrap_or(None);
+            let devices = find_devices(os_type);
+            info!("found {} devices", devices.len());
+        }
+        Some(("install_bundle", args)) => {
+            let aab_path = args
+                .get_one::<String>("aab_path")
+                .map(|s| String::from(s))
+                .unwrap();
+
+            if !Path::new(&aab_path).exists() {
+                error!("The path given to the aab file does not point to anything");
+                exit(1);
+            }
+
+            let devices = find_devices(Some(OsType::Android));
+            for device in devices {
+                match install_bundle(&device, &aab_path) {
+                    Ok(_) => info!("installed and ran app"),
+                    Err(err) => {
+                        error!("Failed to install and run app: {}", err);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn check_extraction_path() -> Result<(), Error> {
     let extract_path = String::from(&ENV_DATA.lock().unwrap().extract_output_dir);
 
     let dir_path = Path::new(&extract_path);
     if !dir_path.exists() {
         match create_dir(dir_path) {
-            Ok(_) => info!("Created directory {}", &extract_path),
-            Err(err) => error!("Failed to create directory: {}", err),
+            Ok(_) => {
+                info!("Created directory {}", &extract_path);
+                Ok(())
+            }
+            Err(err) => {
+                error!("Failed to create directory: {}", err);
+                Err(err)
+            }
         }
     } else {
         if !(Path::new(&extract_path).is_dir()) {
@@ -48,7 +121,8 @@ fn main() -> Result<(), Error> {
             Ok(val) => val,
             Err(_) => panic!("Could not read the directory"),
         };
-        if content.collect::<Vec<Result<DirEntry, Error>>>().len() != 0 {
+        let content = content.collect::<Vec<Result<DirEntry, Error>>>();
+        if !content.is_empty() {
             let should_erase = Confirm::new()
                 .with_prompt(format!(
                     "The directory {} is not empty, do you want to delete its content?",
@@ -58,7 +132,10 @@ fn main() -> Result<(), Error> {
 
             if should_erase {
                 match remove_dir_all(&extract_path) {
-                    Ok(_) => info!("Directory {} erased", &extract_path),
+                    Ok(_) => {
+                        info!("Directory {} erased", &extract_path);
+                        return Ok(());
+                    }
                     Err(err) => {
                         error!(
                             "Failed to erase directory {}: {}",
@@ -73,23 +150,11 @@ fn main() -> Result<(), Error> {
                 exit(1);
             }
         }
+        return Ok(());
     }
-
-    match dotenv().ok() {
-        None => panic!("Missing .env file"),
-        Some(_) => {}
-    }
-
-    get_devices()
-        .iter()
-        .for_each(|adapter| match adapter.install_bundle(&aab_path) {
-            Ok(package_name) => adapter.open_app(&package_name),
-            Err(err) => error!("Failed: {}", err),
-        });
-
-    Ok(())
 }
 
+/// Checks whether all the required binaries are installed and present in PATH
 fn validate_depdencies() {
     // FIXME: should remove this dependency to use just adb and idb
     // Used to find all connected devices

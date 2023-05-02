@@ -217,6 +217,12 @@ impl IAdapter for AdbAdapter {
     }
 
     fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
+        if !bundle_path.ends_with(".aab") {
+            error!("Invalid bundle for android device: {}", bundle_path);
+            let msg = format!("Invalid bundle for android device: {}", bundle_path);
+            return Err(msg);
+        }
+
         let extracted_apks_path = self.extract_apk(bundle_path)?;
 
         info!(

@@ -292,4 +292,8 @@ impl IAdapter for AdbAdapter {
     fn get_device_name(&self) -> String {
         String::from(&self.device.name)
     }
+
+    fn get_os_type(&self) -> crate::device_adapter::i_adapter::OsType {
+        self.device.os_type
+    }
 }

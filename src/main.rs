@@ -13,7 +13,7 @@ use dialoguer::Confirm;
 use log::{error, info, warn};
 use utils::{
     command_executor::command_exists,
-    commands::{find_devices, install_bundle},
+    commands::{find_android_devices, find_devices, install_bundle},
     env_helper::ENV_DATA,
 };
 
@@ -22,6 +22,8 @@ mod utils;
 
 fn main() -> Result<(), Error> {
     env_logger::init();
+
+    find_android_devices();
 
     validate_depdencies();
     match check_extraction_path() {
@@ -55,39 +57,69 @@ fn main() -> Result<(), Error> {
                         .short('a')
                         .long("aab_path")
                         .help("Path to the aab file that must be installed")
-                        .required(true),
+                        .required(false),
+                )
+                .arg(
+                    Arg::new("ipa_path")
+                        .short('i')
+                        .long("ipa_path")
+                        .help("Path to the ipa file that must be installed")
+                        .required(false),
                 ),
         )
         .get_matches();
 
     match matches.subcommand() {
         Some(("find_devices", args)) => {
-            let filter = args.get_one::<String>("filter").unwrap();
-            let os_type = OsType::from_str(&filter)
-                .map(|f| if f == OsType::Invalid { None } else { Some(f) })
-                .unwrap_or(None);
-            let devices = find_devices(os_type);
-            info!("found {} devices", devices.len());
+            let os_type = match args.get_one::<String>("filter") {
+                Some(filter) => OsType::from_str(&filter)
+                    .map(|f| if f == OsType::Invalid { None } else { Some(f) })
+                    .unwrap_or(None),
+                None => None,
+            };
+            for d in find_devices(os_type) {
+                info!("{} - {}", d.get_device_name(), d.get_os_type());
+            }
         }
         Some(("install_bundle", args)) => {
-            let aab_path = args
-                .get_one::<String>("aab_path")
-                .map(|s| String::from(s))
-                .unwrap();
+            let devices = find_devices(None);
 
-            if !Path::new(&aab_path).exists() {
-                error!("The path given to the aab file does not point to anything");
-                exit(1);
+            let aab_path = args.get_one::<String>("aab_path").map(|s| String::from(s));
+            if aab_path.is_some() {
+                let path = aab_path.unwrap();
+                if !Path::new(&path).exists() {
+                    error!("The path given to the aab file does not point to anything");
+                    exit(1);
+                }
+
+                devices
+                    .iter()
+                    .filter(|d| d.get_os_type() == OsType::Android)
+                    .for_each(|d| match install_bundle(d, &path) {
+                        Ok(_) => info!("installed and ran app"),
+                        Err(err) => {
+                            error!("Failed to install and run app: {}", err);
+                        }
+                    })
             }
 
-            let devices = find_devices(Some(OsType::Android));
-            for device in devices {
-                match install_bundle(&device, &aab_path) {
-                    Ok(_) => info!("installed and ran app"),
-                    Err(err) => {
-                        error!("Failed to install and run app: {}", err);
-                    }
+            let ipa_path = args.get_one::<String>("ipa_path").map(|s| String::from(s));
+            if ipa_path.is_some() {
+                let path = ipa_path.unwrap();
+                if !Path::new(&path).exists() {
+                    error!("The path given to the ipa file does not point to anything");
+                    exit(1);
                 }
+
+                devices
+                    .iter()
+                    .filter(|d| d.get_os_type() == OsType::Ios)
+                    .for_each(|d| match install_bundle(d, &path) {
+                        Ok(_) => info!("installed and ran app"),
+                        Err(err) => {
+                            error!("Failed to install and run app: {}", err);
+                        }
+                    })
             }
         }
         _ => {}

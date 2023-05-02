@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
+use strum::Display;
 use strum_macros::EnumString;
 
 use super::{android::adapter::AdbAdapter, ios::adapter::IosAdapter};
@@ -11,6 +12,8 @@ pub enum ScreenRequest {
 }
 
 pub trait IAdapter {
+    fn get_os_type(&self) -> OsType;
+
     fn get_device_name(&self) -> String;
 
     fn toggle_screen(&self, request: &ScreenRequest);
@@ -60,7 +63,7 @@ impl Display for DeviceStatus {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy, EnumString)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, Copy, EnumString, Display)]
 pub enum OsType {
     #[strum(serialize = "android")]
     Android,

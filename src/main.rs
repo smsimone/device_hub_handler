@@ -1,7 +1,7 @@
 use api::handlers::initialize_router;
 use axum::{extract::DefaultBodyLimit, Server};
 use std::{
-    fs::{create_dir, read_dir, remove_dir_all, DirEntry},
+    fs::{create_dir, create_dir_all, read_dir, remove_dir_all, DirEntry},
     io::Error,
     net::SocketAddr,
     path::Path,
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Error> {
         )
         .layer(DefaultBodyLimit::disable());
 
-    let address = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let address = SocketAddr::from(([0, 0, 0, 0], 42069));
     tracing::info!("Listening on {}", &address);
     Server::bind(&address)
         .serve(router.into_make_service())
@@ -58,7 +58,7 @@ fn check_extraction_path() -> Result<(), Error> {
 
     let dir_path = Path::new(&extract_path);
     if !dir_path.exists() {
-        match create_dir(dir_path) {
+        match create_dir_all(dir_path) {
             Ok(_) => {
                 info!("Created directory {}", &extract_path);
                 Ok(())

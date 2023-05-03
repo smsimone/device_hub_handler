@@ -11,7 +11,7 @@ pub enum ScreenRequest {
     Off,
 }
 
-pub trait IAdapter {
+pub trait IAdapter: Sync + Send {
     fn get_os_type(&self) -> OsType;
 
     fn get_device_name(&self) -> String;

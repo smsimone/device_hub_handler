@@ -6,6 +6,7 @@ use std::{
     path::Path,
     process::exit,
     str::FromStr,
+    thread::{self, JoinHandle},
 };
 
 use dialoguer::Confirm;
@@ -13,7 +14,7 @@ use dialoguer::Confirm;
 use log::{error, info, warn};
 use utils::{
     command_executor::command_exists,
-    commands::{find_android_devices, find_devices, install_bundle},
+    commands::{find_devices, install_bundle},
     env_helper::ENV_DATA,
 };
 
@@ -22,8 +23,6 @@ mod utils;
 
 fn main() -> Result<(), Error> {
     env_logger::init();
-
-    find_android_devices();
 
     validate_depdencies();
     match check_extraction_path() {
@@ -82,9 +81,9 @@ fn main() -> Result<(), Error> {
             }
         }
         Some(("install_bundle", args)) => {
-            let devices = find_devices(None);
-
+            let mut handles = Vec::<JoinHandle<()>>::new();
             let aab_path = args.get_one::<String>("aab_path").map(|s| String::from(s));
+
             if aab_path.is_some() {
                 let path = aab_path.unwrap();
                 if !Path::new(&path).exists() {
@@ -92,15 +91,18 @@ fn main() -> Result<(), Error> {
                     exit(1);
                 }
 
-                devices
-                    .iter()
-                    .filter(|d| d.get_os_type() == OsType::Android)
-                    .for_each(|d| match install_bundle(d, &path) {
+                let android_devices = find_devices(Some(OsType::Android));
+
+                for device in android_devices.into_iter() {
+                    let temp_path = String::from(&path);
+                    let handle = thread::spawn(move || match install_bundle(&device, &temp_path) {
                         Ok(_) => info!("installed and ran app"),
                         Err(err) => {
                             error!("Failed to install and run app: {}", err);
                         }
-                    })
+                    });
+                    handles.push(handle);
+                }
             }
 
             let ipa_path = args.get_one::<String>("ipa_path").map(|s| String::from(s));
@@ -111,15 +113,22 @@ fn main() -> Result<(), Error> {
                     exit(1);
                 }
 
-                devices
-                    .iter()
-                    .filter(|d| d.get_os_type() == OsType::Ios)
-                    .for_each(|d| match install_bundle(d, &path) {
+                let ios_devices = find_devices(Some(OsType::Ios));
+
+                for device in ios_devices.into_iter() {
+                    let temp_path = String::from(&path);
+                    let handle = thread::spawn(move || match install_bundle(&device, &temp_path) {
                         Ok(_) => info!("installed and ran app"),
                         Err(err) => {
                             error!("Failed to install and run app: {}", err);
                         }
-                    })
+                    });
+                    handles.push(handle);
+                }
+            }
+
+            for handle in handles {
+                handle.join().unwrap();
             }
         }
         _ => {}

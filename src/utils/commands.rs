@@ -1,6 +1,10 @@
-use std::process::Command;
+use std::{
+    path::Path,
+    process::Command,
+    thread::{self, JoinHandle},
+};
 
-use log::error;
+use log::{error, info};
 
 use crate::device_adapter::i_adapter::{get_adapter, DecodedDevice, Device, IAdapter, OsType};
 
@@ -63,7 +67,7 @@ pub fn find_android_devices() {
     }
 }
 
-pub fn install_bundle(adapter: &Box<dyn IAdapter>, bundle_path: &String) -> Result<(), String> {
+fn install_bundle(adapter: &Box<dyn IAdapter>, bundle_path: &String) -> Result<(), String> {
     return adapter
         .install_bundle(bundle_path)
         .map(|package_name| {
@@ -74,4 +78,60 @@ pub fn install_bundle(adapter: &Box<dyn IAdapter>, bundle_path: &String) -> Resu
             error!("Failed: {}", err);
             err
         });
+}
+
+/// Installs the given bundle_path against all the devices connected
+///
+/// The [OsType] is computed from the extension of the file given:
+/// - aab: [OsType::Android]
+/// - app/ipa: [OsType::Ios]
+pub fn install_bundle_all(bundle_path: &String) -> Result<(), String> {
+    let file = Path::new(bundle_path);
+    if !file.exists() {
+        return Err("The given path does not exists".to_string());
+    }
+
+    let extension = file.extension();
+    if extension.is_none() {
+        let filename = file
+            .file_name()
+            .map(|s| s.to_str().unwrap().to_string())
+            .unwrap_or("no_name".to_string());
+        error!("Missing extension on given file {}", &filename);
+        return Err(format!("Missing extension on given file {}", &filename));
+    }
+    let ext = extension.unwrap().to_str().unwrap();
+    if !vec!["aab", "ipa", "app"].contains(&ext) {
+        error!("Invalid file extension: {}", &ext);
+        return Err(format!("Invalid file extension: {}", &ext));
+    }
+
+    let os_device: Option<OsType>;
+
+    if ext == "aab" {
+        os_device = Some(OsType::Android);
+    } else {
+        os_device = Some(OsType::Ios);
+    }
+
+    let devices = find_devices(os_device);
+
+    let mut handles = Vec::<JoinHandle<()>>::new();
+
+    for device in devices.into_iter() {
+        let temp_path = String::from(bundle_path);
+        let handle = thread::spawn(move || match install_bundle(&device, &temp_path) {
+            Ok(_) => info!("installed and ran app"),
+            Err(err) => {
+                error!("Failed to install and run app: {}", err);
+            }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    return Ok(());
 }

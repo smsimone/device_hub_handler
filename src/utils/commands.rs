@@ -37,36 +37,6 @@ pub fn find_devices(filter: Option<OsType>) -> Vec<Box<dyn IAdapter>> {
     return devices;
 }
 
-pub fn find_android_devices() {
-    let bytes = Command::new("adb")
-        .arg("devices")
-        .arg("-l")
-        .output()
-        .expect("Something went wrong")
-        .stdout;
-
-    let output_value = String::from_utf8(bytes).expect("The obtained string is not valid");
-    let lines = output_value
-        .split("\n")
-        .map(|item| String::from(item))
-        .skip(1)
-        .filter(|line| !line.is_empty())
-        .map(|line| {
-            line.split(" ")
-                .map(|l| l.to_string())
-                .filter(|l| !l.is_empty())
-                .collect::<Vec<String>>()
-        })
-        .collect::<Vec<Vec<String>>>();
-
-    for line in lines {
-        for component in line {
-            print!("{}, ", component);
-        }
-        println!("");
-    }
-}
-
 fn install_bundle(adapter: &Box<dyn IAdapter>, bundle_path: &String) -> Result<(), String> {
     return adapter
         .install_bundle(bundle_path)

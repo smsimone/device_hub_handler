@@ -1,7 +1,7 @@
 use api::handlers::initialize_router;
 use axum::{extract::DefaultBodyLimit, Server};
 use std::{
-    fs::{create_dir, create_dir_all, read_dir, remove_dir_all, DirEntry},
+    fs::{create_dir_all, read_dir, remove_dir_all, DirEntry},
     io::Error,
     net::SocketAddr,
     path::Path,

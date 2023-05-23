@@ -69,28 +69,32 @@ impl IAdapter for IosAdapter {
     }
 
     fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
-        if !bundle_path.ends_with(".app") {
-            error!("Invalid bundle for ios device: {}", &bundle_path);
-            return Err(format!("Invalid bundle path: {}", &bundle_path));
-        }
-
-        let bundle_name = "it.clikapp.toduba.Toduba-Pastopay".to_string();
-        if self.is_app_installed(&bundle_name).unwrap_or(false) {
-            _ = self.uninstall_app(&bundle_name);
-        }
-
-        match command_executor::exec(&format!(
-            "idb install --udid {} {}",
-            self.device.id, &bundle_path
-        )) {
-            Ok(_) => {
-                info!("Installed bundle on ios device");
-                // TODO: get the installed package name from output
-                return Ok(bundle_name);
+        if bundle_path.ends_with(".ipa") {
+            return Err("Still to implement".to_string());
+        } else {
+            if !bundle_path.ends_with(".app") {
+                error!("Invalid bundle for ios device: {}", &bundle_path);
+                return Err(format!("Invalid bundle path: {}", &bundle_path));
             }
-            Err(err) => {
-                error!("Failed to install bundle on ios device: {}", err);
-                return Err(format!("Failed to install bundle on ios device: {}", err));
+
+            let bundle_name = "it.clikapp.toduba.Toduba-Pastopay".to_string();
+            if self.is_app_installed(&bundle_name).unwrap_or(false) {
+                _ = self.uninstall_app(&bundle_name);
+            }
+
+            match command_executor::exec(&format!(
+                "idb install --udid {} {}",
+                self.device.id, &bundle_path
+            )) {
+                Ok(_) => {
+                    info!("Installed bundle on ios device");
+                    // TODO: get the installed package name from output
+                    return Ok(bundle_name);
+                }
+                Err(err) => {
+                    error!("Failed to install bundle on ios device: {}", err);
+                    return Err(format!("Failed to install bundle on ios device: {}", err));
+                }
             }
         }
     }

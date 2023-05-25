@@ -70,7 +70,7 @@ pub fn install_bundle_all(bundle_path: &String) -> Result<(), String> {
         return Err(format!("Missing extension on given file {}", &filename));
     }
     let ext = extension.unwrap().to_str().unwrap();
-    if !vec!["aab", "ipa", "app"].contains(&ext) {
+    if !vec!["aab", "ipa", "app", "apk"].contains(&ext) {
         error!("Invalid file extension: {}", &ext);
         return Err(format!("Invalid file extension: {}", &ext));
     }
@@ -84,15 +84,23 @@ pub fn install_bundle_all(bundle_path: &String) -> Result<(), String> {
     }
 
     let devices = find_devices(os_device);
+    info!("Found {} devices", devices.len());
 
     let mut handles = Vec::<JoinHandle<()>>::new();
 
     for device in devices.into_iter() {
         let temp_path = String::from(bundle_path);
-        let handle = thread::spawn(move || match install_bundle(device.as_ref(), &temp_path) {
-            Ok(_) => info!("installed and ran app"),
-            Err(err) => {
-                error!("Failed to install and run app: {}", err);
+        let handle = thread::spawn(move || {
+            info!(
+                "Installing against {} -> {}",
+                device.get_device_name(),
+                device.get_os_type().to_string()
+            );
+            match install_bundle(device.as_ref(), &temp_path) {
+                Ok(_) => info!("installed and ran app"),
+                Err(err) => {
+                    error!("Failed to install and run app: {}", err);
+                }
             }
         });
         handles.push(handle);

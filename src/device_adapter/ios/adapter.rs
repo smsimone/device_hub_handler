@@ -1,8 +1,15 @@
+use glob::glob;
+use plist::Value;
+use std::{
+    io::{BufReader, Cursor, Read},
+    path::Path,
+};
+
 use log::{error, info};
 
 use crate::{
     device_adapter::i_adapter::{Device, DeviceStatus, IAdapter, ScreenRequest},
-    utils::command_executor,
+    utils::{command_executor, env_helper::ENV_DATA},
 };
 
 pub struct IosAdapter {
@@ -39,6 +46,84 @@ impl IosAdapter {
             Err(err) => Err(err.to_string()),
         }
     }
+
+    /// I hope I will have some time to refactor this because it's pretty shitty
+    fn get_bundle_name(&self, bundle_path: &String) -> Result<String, String> {
+        let bundle_file = Path::new(bundle_path);
+
+        if !bundle_file.exists() {
+            return Err("The given path does not exists".to_string());
+        }
+
+        let new_file = format!("{}.zip", bundle_path);
+
+        let result = match command_executor::exec(&format!("cp {} {}", bundle_path, &new_file)) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(err.to_string()),
+        };
+
+        if result.is_err() {
+            return Err(result.unwrap_err());
+        }
+
+        let extraction_path = format!(
+            "{}/{}",
+            ENV_DATA.lock().unwrap().extract_output_dir,
+            self.device.id
+        );
+        info!("Extracting application into {}", extraction_path);
+
+        let file = std::fs::File::open(&new_file).map_err(|err| err.to_string())?;
+        let mut reader = BufReader::new(&file);
+        let mut buffer = Vec::new();
+
+        let dim = reader.read_to_end(&mut buffer);
+        info!(
+            "Read {} bytes",
+            dim.map(|size| size.to_string())
+                .unwrap_or("There was an error".to_string())
+        );
+
+        let extraction_folder = Path::new(&extraction_path);
+
+        match zip_extract::extract(Cursor::new(&buffer), &extraction_folder, true) {
+            Ok(_) => info!(
+                "Extracted zip file in {}",
+                &extraction_folder.to_str().unwrap()
+            ),
+            Err(err) => {
+                error!("Failed to extract zip file:\n{}", err.to_string());
+                return Err(err.to_string());
+            }
+        }
+
+        let info_plists = glob(
+            format!(
+                "{}/**/Info.plist",
+                &extraction_folder.as_os_str().to_str().unwrap()
+            )
+            .as_str(),
+        )
+        .expect("Failed to read glob");
+
+        let item = info_plists.min_by_key(|f| f.as_ref().unwrap().display().to_string().len());
+
+        let correct_plist = item.unwrap().unwrap().to_str().unwrap().to_string();
+
+        info!("Minimum info.plist path: {}", &correct_plist);
+
+        let info = Value::from_file(&correct_plist).expect("Must be a valid plist file");
+
+        let bundle_name = info
+            .as_dictionary()
+            .and_then(|dict| dict.get("CFBundleIdentifier"))
+            .and_then(|bundle| bundle.as_string())
+            .expect("There should be the bundle identifier key");
+
+        info!("Got bundle name: {}", &bundle_name);
+
+        return Ok(bundle_name.to_string());
+    }
 }
 
 impl IAdapter for IosAdapter {
@@ -69,32 +154,30 @@ impl IAdapter for IosAdapter {
     }
 
     fn install_bundle(&self, bundle_path: &String) -> Result<String, String> {
-        if bundle_path.ends_with(".ipa") {
-            return Err("Still to implement".to_string());
-        } else {
-            if !bundle_path.ends_with(".app") {
-                error!("Invalid bundle for ios device: {}", &bundle_path);
-                return Err(format!("Invalid bundle path: {}", &bundle_path));
-            }
+        if !bundle_path.ends_with(".app") && !bundle_path.ends_with(".ipa") {
+            error!("Invalid bundle for ios device: {}", &bundle_path);
+            return Err(format!("Invalid bundle path: {}", &bundle_path));
+        }
 
-            let bundle_name = "it.clikapp.toduba.Toduba-Pastopay".to_string();
-            if self.is_app_installed(&bundle_name).unwrap_or(false) {
-                _ = self.uninstall_app(&bundle_name);
-            }
+        let bundle_name = self
+            .get_bundle_name(&bundle_path)
+            .expect("There should be a bundle name");
 
-            match command_executor::exec(&format!(
-                "idb install --udid {} {}",
-                self.device.id, &bundle_path
-            )) {
-                Ok(_) => {
-                    info!("Installed bundle on ios device");
-                    // TODO: get the installed package name from output
-                    return Ok(bundle_name);
-                }
-                Err(err) => {
-                    error!("Failed to install bundle on ios device: {}", err);
-                    return Err(format!("Failed to install bundle on ios device: {}", err));
-                }
+        if self.is_app_installed(&bundle_name).unwrap_or(false) {
+            _ = self.uninstall_app(&bundle_name);
+        }
+
+        match command_executor::exec(&format!(
+            "idb install --udid {} {}",
+            self.device.id, &bundle_path
+        )) {
+            Ok(_) => {
+                info!("Installed bundle on ios device");
+                return Ok(bundle_name);
+            }
+            Err(err) => {
+                error!("Failed to install bundle on ios device: {}", err);
+                return Err(format!("Failed to install bundle on ios device: {}", err));
             }
         }
     }

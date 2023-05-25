@@ -26,3 +26,5 @@ tracing = "0.1"
 tower-http = { version = "0.3.5", features = ["trace", "limit"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zip-extract = "0.1.2"
+glob = "0.3.1"
+plist = "1.4.3"

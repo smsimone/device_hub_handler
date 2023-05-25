@@ -36,7 +36,7 @@ async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode>
 
         let download_dir = &ENV_DATA.lock().unwrap().download_default_dir;
         if !Path::new(&download_dir).exists() {
-            match std::fs::create_dir(&download_dir) {
+            match std::fs::create_dir_all(&download_dir) {
                 Ok(_) => info!("Created download directory {}", &download_dir),
                 Err(err) => {
                     error!(

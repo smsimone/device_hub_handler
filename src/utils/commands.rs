@@ -37,7 +37,7 @@ pub fn find_devices(filter: Option<OsType>) -> Vec<Box<dyn IAdapter>> {
     return devices;
 }
 
-fn install_bundle(adapter: &Box<dyn IAdapter>, bundle_path: &String) -> Result<(), String> {
+fn install_bundle(adapter: &dyn IAdapter, bundle_path: &String) -> Result<(), String> {
     return adapter
         .install_bundle(bundle_path)
         .map(|package_name| {
@@ -65,8 +65,7 @@ pub fn install_bundle_all(bundle_path: &String) -> Result<(), String> {
     if extension.is_none() {
         let filename = file
             .file_name()
-            .map(|s| s.to_str().unwrap().to_string())
-            .unwrap_or("no_name".to_string());
+            .map_or("no_name".to_string(), |s| s.to_str().unwrap().to_string());
         error!("Missing extension on given file {}", &filename);
         return Err(format!("Missing extension on given file {}", &filename));
     }

@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 
 pub static ENV_DATA: Lazy<Mutex<EnvData>> = Lazy::new(|| Mutex::new(EnvData::load().unwrap()));
 
+/// Contains all the env data
 pub struct EnvData {
     pub android_config: AndroidConfig,
     pub extract_output_dir: String,
@@ -18,6 +19,7 @@ pub struct AndroidConfig {
 }
 
 impl EnvData {
+    /// Loads the .env file
     pub fn load() -> Result<EnvData, String> {
         if dotenv().ok().is_none() {
             panic!("Failed to load .env file");

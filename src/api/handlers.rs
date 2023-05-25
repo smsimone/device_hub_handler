@@ -11,6 +11,7 @@ use tracing::error;
 
 use crate::utils::{commands::install_bundle_all, env_helper::ENV_DATA};
 
+/// Initializes a new instance of [Router] to handle the rest APIs
 pub fn initialize_router() -> Router {
     Router::new().route("/upload", post(upload_bundle))
 }

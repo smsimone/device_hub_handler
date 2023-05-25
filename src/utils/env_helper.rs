@@ -7,8 +7,11 @@ pub static ENV_DATA: Lazy<Mutex<EnvData>> = Lazy::new(|| Mutex::new(EnvData::loa
 
 /// Contains all the env data
 pub struct EnvData {
+    /// Contains the android signin configurations
     pub android_config: AndroidConfig,
+    /// Directory in which the `.zip` archive will be extracted to
     pub extract_output_dir: String,
+    /// Directory in which the `/upload` endpoint saves the archives
     pub download_default_dir: String,
 }
 

@@ -89,7 +89,7 @@ pub fn install_bundle_all(bundle_path: &String) -> Result<(), String> {
 
     for device in devices.into_iter() {
         let temp_path = String::from(bundle_path);
-        let handle = thread::spawn(move || match install_bundle(&device, &temp_path) {
+        let handle = thread::spawn(move || match install_bundle(device.as_ref(), &temp_path) {
             Ok(_) => info!("installed and ran app"),
             Err(err) => {
                 error!("Failed to install and run app: {}", err);

@@ -1,4 +1,4 @@
-use std::{fs::read_dir, io::Read, path::Path, usize};
+use std::{fs::read_dir, io::Read, path::Path};
 
 use axum::{body, http::StatusCode, response::Response};
 use log::{error, info};

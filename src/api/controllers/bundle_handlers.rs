@@ -40,7 +40,7 @@ async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode>
                     });
                 }
             }
-            Err(err) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+            Err(_err) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
         }
     }
 

@@ -5,7 +5,7 @@ use log::{error, info};
 
 use crate::{
     api::controllers::device_handlers::BundleName,
-    device_adapter::i_adapter::{IAdapter, OsType},
+    device_adapter::i_adapter::{IAdapter, OsType, ScreenRequest},
     utils::{command_executor, env_helper::ENV_DATA},
 };
 
@@ -23,24 +23,18 @@ pub async fn run_test(
     }
     info!("Test file {} has been found", test_name);
 
-    let devices = device_service::find_devices(None);
-    let mut device_os_type: OsType = OsType::Invalid;
+    let opt_device = device_service::find_devices(None)
+        .into_iter()
+        .find(|d| d.get_device_id() == String::from(device_id));
 
-    if devices
-        .iter()
-        .filter(|d| d.get_device_id() == String::from(device_id))
-        .map(|d| {
-            device_os_type = d.get_os_type();
-            return d;
-        })
-        .count()
-        <= 0
-    {
+    if opt_device.is_none() {
         error!("Device {} not found", device_id);
         return Err(StatusCode::NOT_FOUND);
     }
 
-    let bundle = match device_os_type {
+    let device = opt_device.unwrap();
+
+    let bundle = match device.get_os_type() {
         OsType::Android => String::from(&bundle_name.android_bundle),
         OsType::Ios => String::from(&bundle_name.ios_bundle),
         OsType::Invalid => return Err(StatusCode::INTERNAL_SERVER_ERROR),
@@ -53,6 +47,8 @@ pub async fn run_test(
 
     let tests_folder = &ENV_DATA.lock().unwrap().maestro_tests_dir;
     let test_file = format!("{}/{}", &tests_folder.trim(), test_name);
+
+    device.toggle_screen(&ScreenRequest::On);
 
     let test_result = command_executor::exec(&format!(
         "maestro --device {} test -e APP_TO_LAUNCH={} {}",

@@ -15,12 +15,13 @@ use crate::api::services::{device_service::find_devices, maestro_service};
 pub struct BundleName {
     pub ios_bundle: String,
     pub android_bundle: String,
+    pub device_id: Option<String>,
 }
 
 pub fn initialize_router() -> Router {
     Router::new()
         .route("/", get(get_devices))
-        .route("/:device_id/:test_name", post(run_test))
+        .route("/:test_name", post(run_test))
 }
 
 async fn get_devices() -> Result<Json<Value>, StatusCode> {
@@ -41,9 +42,17 @@ async fn get_devices() -> Result<Json<Value>, StatusCode> {
 }
 
 async fn run_test(
-    Path((device_id, test_name)): Path<(String, String)>,
+    Path(test_name): Path<String>,
     Query(query_params): Query<BundleName>,
 ) -> Result<Response, StatusCode> {
-    info!("Running '{}' on device {}", &test_name, &device_id);
-    return maestro_service::run_test(&test_name, &device_id, &query_params).await;
+    match &query_params.device_id {
+        Some(device_id) => {
+            info!("Running '{}' on device {}", &test_name, &device_id);
+            return maestro_service::run_test(&test_name, &device_id, &query_params).await;
+        }
+        None => {
+            info!("Running tests on all connected devices");
+            return Ok(Response::default());
+        }
+    }
 }

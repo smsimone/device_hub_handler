@@ -14,7 +14,7 @@ use dialoguer::Confirm;
 use log::{error, info, warn};
 use utils::{command_executor::command_exists, env_helper::ENV_DATA};
 
-use crate::api::{bundle_handlers, maestro_handlers};
+use crate::api::controllers::{bundle_handlers, device_handlers, maestro_handlers};
 
 mod api;
 mod device_adapter;
@@ -39,6 +39,7 @@ async fn main() -> Result<(), Error> {
     let router = Router::new()
         .nest("/bundles", bundle_handlers::initialize_router())
         .nest("/maestro", maestro_handlers::initialize_router())
+        .nest("/devices", device_handlers::initialize_router())
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

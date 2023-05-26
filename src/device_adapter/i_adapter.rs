@@ -14,6 +14,8 @@ pub enum ScreenRequest {
 pub trait IAdapter: Sync + Send {
     fn get_os_type(&self) -> OsType;
 
+    fn get_device_id(&self) -> String;
+
     fn get_device_name(&self) -> String;
 
     fn toggle_screen(&self, request: &ScreenRequest);

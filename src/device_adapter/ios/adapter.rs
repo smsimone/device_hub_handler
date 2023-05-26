@@ -189,4 +189,8 @@ impl IAdapter for IosAdapter {
     fn get_os_type(&self) -> crate::device_adapter::i_adapter::OsType {
         self.device.os_type
     }
+
+    fn get_device_id(&self) -> String {
+        String::from(&self.device.id)
+    }
 }

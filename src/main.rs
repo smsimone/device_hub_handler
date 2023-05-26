@@ -1,5 +1,4 @@
-use api::handlers::initialize_router;
-use axum::{extract::DefaultBodyLimit, Server};
+use axum::{extract::DefaultBodyLimit, Router, Server};
 use std::{
     fs::{create_dir_all, read_dir, remove_dir_all, DirEntry},
     io::Error,
@@ -14,6 +13,8 @@ use dialoguer::Confirm;
 
 use log::{error, info, warn};
 use utils::{command_executor::command_exists, env_helper::ENV_DATA};
+
+use crate::api::{bundle_handlers, maestro_handlers};
 
 mod api;
 mod device_adapter;
@@ -35,7 +36,9 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    let router = initialize_router()
+    let router = Router::new()
+        .nest("/bundles", bundle_handlers::initialize_router())
+        .nest("/maestro", maestro_handlers::initialize_router())
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

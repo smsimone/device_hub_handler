@@ -1,14 +1,41 @@
-use std::{io::Write, path::Path};
+use std::{fs::read_dir, io::Write, path::Path};
 
-use axum::{extract::Multipart, http::StatusCode, response::Response, routing::post, Router};
+use axum::{
+    extract::Multipart,
+    http::StatusCode,
+    response::Response,
+    routing::{get, post},
+    Json, Router,
+};
 use log::info;
+use serde_json::{json, Value};
 use tracing::error;
 
 use crate::utils::env_helper::ENV_DATA;
 
 /// Initializes a new instance of [Router] to handle the rest APIs
 pub fn initialize_router() -> Router {
-    Router::new().route("/upload", post(upload_test_file))
+    Router::new()
+        .route("/", get(get_uploaded_files))
+        .route("/upload", post(upload_test_file))
+}
+
+async fn get_uploaded_files() -> Result<Json<Value>, StatusCode> {
+    let tests_dir = &ENV_DATA.lock().unwrap().maestro_tests_dir;
+
+    let entries = match read_dir(&tests_dir) {
+        Ok(e) => e
+            .filter(|e| e.is_ok())
+            .map(|e| e.unwrap())
+            .map(|e| e.file_name().to_str().unwrap().to_string())
+            .collect::<Vec<String>>(),
+        Err(err) => {
+            error!("Failed to read tests directory: {}", err.to_string());
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    return Ok(Json(json!({ "tests": entries })));
 }
 
 /// Handles the upload of a new maestro test file (.yml file)

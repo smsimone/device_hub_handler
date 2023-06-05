@@ -1,5 +1,5 @@
 use std::{
-    fs::{create_dir_all, read_dir, DirEntry},
+    fs::{create_dir_all, DirEntry, read_dir},
     io::Cursor,
     path::Path,
 };

@@ -5,7 +5,7 @@ use log::{error, info};
 
 use crate::{
     api::controllers::device_handlers::BundleName,
-    device_adapter::i_adapter::{IAdapter, OsType, ScreenRequest},
+    device_adapter::i_adapter::{OsType, ScreenRequest},
     utils::{command_executor, env_helper::ENV_DATA},
 };
 
@@ -76,18 +76,18 @@ pub fn get_test_content(test_name: &String) -> Result<String, StatusCode> {
         return Err(StatusCode::NOT_FOUND);
     }
 
-    match std::fs::File::open(&file_path) {
+    return match std::fs::File::open(&file_path) {
         Ok(mut file) => {
             let mut content = String::new();
             file.read_to_string(&mut content)
                 .expect("Failed to read file");
-            return Ok(content);
+            Ok(content)
         }
         Err(error) => {
             error!("Failed to open file: {}", error.to_string());
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
         }
-    }
+    };
 }
 
 pub fn get_available_tests() -> Vec<String> {

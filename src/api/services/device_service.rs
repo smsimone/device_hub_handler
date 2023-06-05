@@ -6,7 +6,7 @@ use std::{
 
 use log::{error, info};
 
-use crate::device_adapter::i_adapter::{get_adapter, DecodedDevice, Device, IAdapter, OsType};
+use crate::device_adapter::i_adapter::{DecodedDevice, Device, get_adapter, IAdapter, OsType};
 
 /// Find all devices with the same os defined in filter. If filter is [None], all device types will
 /// be returned

@@ -1,17 +1,17 @@
-use axum::{extract::DefaultBodyLimit, Router, Server};
 use std::{
-    fs::{create_dir_all, read_dir, remove_dir_all, DirEntry},
+    fs::{create_dir_all, DirEntry, read_dir, remove_dir_all},
     io::Error,
     net::SocketAddr,
     path::Path,
     process::exit,
 };
+
+use axum::{extract::DefaultBodyLimit, Router, Server};
+use dialoguer::Confirm;
+use log::{error, info, warn};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
-use dialoguer::Confirm;
-
-use log::{error, info, warn};
 use utils::{command_executor::command_exists, env_helper::ENV_DATA};
 
 use crate::api::controllers::{bundle_handlers, device_handlers, maestro_handlers};

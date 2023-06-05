@@ -73,12 +73,12 @@ fn extract_apks(apks_path: &String) -> Result<String, String> {
         "tar -xvf {} -C {}",
         apks_path, extraction_directory
     ))
-    .map(|_| {
-        info!("Extracted apks in path {}", extraction_directory);
-        extraction_directory
-    })
-    .map_err(|err| {
-        error!("Failed to extract apks: {}", err.to_string());
-        err.to_string()
-    })
+        .map(|_| {
+            info!("Extracted apks in path {}", extraction_directory);
+            extraction_directory
+        })
+        .map_err(|err| {
+            error!("Failed to extract apks: {}", err.to_string());
+            err.to_string()
+        })
 }

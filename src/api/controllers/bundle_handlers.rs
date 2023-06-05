@@ -1,6 +1,6 @@
 use std::thread;
 
-use axum::{extract::Multipart, http::StatusCode, response::Response, routing::post, Router};
+use axum::{extract::Multipart, http::StatusCode, response::Response, Router, routing::post};
 use log::info;
 use tracing::error;
 

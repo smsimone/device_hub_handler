@@ -4,9 +4,9 @@ use axum::{
     body::boxed,
     extract::{Multipart, Path},
     http::{header, StatusCode},
+    Json,
     response::Response,
-    routing::{get, post},
-    Json, Router,
+    Router, routing::{get, post},
 };
 use log::info;
 use serde_json::{json, Value};
@@ -31,20 +31,20 @@ async fn get_uploaded_files() -> Result<Json<Value>, StatusCode> {
 }
 
 async fn get_test_content(Path(test_name): Path<String>) -> Result<Response, StatusCode> {
-    match maestro_service::get_test_content(&test_name) {
+    return match maestro_service::get_test_content(&test_name) {
         Ok(content) => {
             info!("Got test content");
             let response = Response::builder()
                 .header(header::CONTENT_TYPE, "text/yaml")
                 .body(boxed(content))
                 .unwrap();
-            return Ok(response);
+            Ok(response)
         }
         Err(err) => {
             error!("Failed to get test content");
-            return Err(err);
+            Err(err)
         }
-    }
+    };
 }
 
 /// Handles the upload of a new maestro test file (.yml file)
@@ -89,7 +89,7 @@ async fn upload_test_file(mut multipart: Multipart) -> Result<Response, StatusCo
             Some(extension) => {
                 let ext = extension.to_str().unwrap().to_string();
                 if ext != "yaml" {
-                    error!("Only yamls files are accepted. Received {}", &ext);
+                    error!("Only yamls files are accepted. Received {}", &ext);
                     return Err(StatusCode::BAD_REQUEST);
                 }
             }

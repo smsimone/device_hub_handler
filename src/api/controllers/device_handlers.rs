@@ -1,9 +1,9 @@
 use axum::{
     extract::{Path, Query},
     http::StatusCode,
+    Json,
     response::Response,
-    routing::{get, post},
-    Json, Router,
+    Router, routing::{get, post},
 };
 use log::info;
 use serde::Deserialize;
@@ -45,14 +45,14 @@ async fn run_test(
     Path(test_name): Path<String>,
     Query(query_params): Query<BundleName>,
 ) -> Result<Response, StatusCode> {
-    match &query_params.device_id {
+    return match &query_params.device_id {
         Some(device_id) => {
             info!("Running '{}' on device {}", &test_name, &device_id);
-            return maestro_service::run_test(&test_name, &device_id, &query_params).await;
+            maestro_service::run_test(&test_name, &device_id, &query_params).await
         }
         None => {
             info!("Running tests on all connected devices");
-            return Ok(Response::default());
+            Ok(Response::default())
         }
-    }
+    };
 }

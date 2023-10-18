@@ -1,5 +1,4 @@
-use api::handlers::initialize_router;
-use axum::{extract::DefaultBodyLimit, Server};
+use axum::{extract::DefaultBodyLimit, Router, Server};
 use std::{
     fs::{create_dir_all, read_dir, remove_dir_all, DirEntry},
     io::Error,
@@ -35,13 +34,15 @@ async fn main() -> Result<(), Error> {
         }
     }
 
-    let router = initialize_router()
+    let router = Router::new()
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
-        .layer(DefaultBodyLimit::disable());
+        .layer(DefaultBodyLimit::disable())
+        .merge(api::handlers::initialize_router())
+        .merge(api::maestro_handlers::initialize_router());
 
     let address = SocketAddr::from(([0, 0, 0, 0], 42069));
     tracing::info!("Listening on {}", &address);

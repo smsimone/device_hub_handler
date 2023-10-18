@@ -13,6 +13,8 @@ pub struct EnvData {
     pub extract_output_dir: String,
     /// Directory in which the `/upload` endpoint saves the archives
     pub download_default_dir: String,
+    /// Directory where tests have to be stored
+    pub tests_folder: String,
 }
 
 pub struct AndroidConfig {
@@ -38,6 +40,7 @@ impl EnvData {
             dotenv::var("EXTRACT_DEFAULT_DIR").map_err(|err| err.to_string())?;
         let download_default_dir =
             dotenv::var("DOWNLOAD_DEFAULT_DIR").map_err(|err| err.to_string())?;
+        let tests_folder = dotenv::var("TESTS_EXTRACTION_FOLDER").map_err(|err| err.to_string())?;
 
         if !Path::new(&extract_output_dir).is_absolute() {
             panic!("EXTRACT_DEFAULT_DIR must be absolute");
@@ -50,6 +53,7 @@ impl EnvData {
         Ok(EnvData {
             extract_output_dir,
             download_default_dir,
+            tests_folder,
             android_config: AndroidConfig {
                 keystore_path: android_keystore_path,
                 keystore_alias: android_keystore_alias,

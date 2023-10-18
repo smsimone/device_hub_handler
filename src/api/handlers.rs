@@ -6,10 +6,9 @@ use std::{
 };
 
 use axum::{extract::Multipart, http::StatusCode, response::Response, routing::post, Router};
-use log::info;
-use tracing::error;
+use tracing::{error, info};
 
-use crate::utils::{commands::install_bundle_all, env_helper::ENV_DATA};
+use crate::utils::{commands::install_bundle_all, env_helper::ENV_DATA, multipart_helper};
 
 /// Initializes a new instance of [Router] to handle the rest APIs
 pub fn initialize_router() -> Router {
@@ -19,20 +18,9 @@ pub fn initialize_router() -> Router {
 /// Handles the upload of a given bundle and starts the installation process
 async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode> {
     while let Some(field) = multipart.next_field().await.unwrap() {
-        let filename = match field.file_name() {
-            Some(name) => name.to_string(),
-            None => {
-                error!("Missing filename for the uploaded file");
-                continue;
-            }
-        };
-
-        let bytes = match field.bytes().await {
-            Ok(data) => data,
-            Err(err) => {
-                error!("Failed to get bytes from multipart: {}", err.to_string());
-                continue;
-            }
+        let file = match multipart_helper::extract_file(field).await {
+            Some(f) => f,
+            None => continue,
         };
 
         let download_dir = &ENV_DATA.lock().unwrap().download_default_dir;
@@ -50,7 +38,7 @@ async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode>
             }
         }
 
-        let temp_file_path = format!("{}/{}", &download_dir, filename);
+        let temp_file_path = format!("{}/{}", &download_dir, file.name);
 
         let temp_file = Path::new(&temp_file_path);
 
@@ -64,22 +52,22 @@ async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode>
                 ext
             }
             None => {
-                error!("Missing extension in file {}", &filename);
+                error!("Missing extension in file {}", &file.name);
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
         };
 
         if temp_file.exists() {
             match std::fs::remove_file(&temp_file_path) {
-                Ok(_) => info!("Already existent file {} has been removed", &filename),
-                Err(err) => error!("Couldn't remove file {}:\n{}", &filename, err.to_string()),
+                Ok(_) => info!("Already existent file {} has been removed", &file.name),
+                Err(err) => error!("Couldn't remove file {}:\n{}", &file.name, err.to_string()),
             }
         }
 
         let extraction_folder = temp_file
             .parent()
             .unwrap()
-            .join(filename.replace(&format!(".{}", extension), ""))
+            .join(file.name.replace(&format!(".{}", extension), ""))
             .join("extract");
 
         info!(
@@ -98,7 +86,7 @@ async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode>
             }
         }
 
-        match zip_extract::extract(Cursor::new(&bytes), &extraction_folder, true) {
+        match zip_extract::extract(Cursor::new(&file.bytes), &extraction_folder, true) {
             Ok(_) => info!(
                 "Extracted zip file in {}",
                 &extraction_folder.to_str().unwrap()

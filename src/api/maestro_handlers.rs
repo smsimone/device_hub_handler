@@ -1,4 +1,5 @@
 use axum::{extract::Multipart, http::StatusCode, response::Response, routing::post, Router};
+use tracing::error;
 
 use crate::utils::{env_helper::ENV_DATA, files_manager::save_file, multipart_helper};
 
@@ -15,7 +16,10 @@ async fn upload_test_file(mut multipart: Multipart) -> Result<Response, StatusCo
             None => continue,
         };
 
-        save_file(&file, download_dir);
+        match save_file(&file, download_dir) {
+            Err(err) => error!("Failed to write file {}: {}", file.name, err),
+            Ok(_) => {}
+        }
     }
 
     return Ok(Response::default());

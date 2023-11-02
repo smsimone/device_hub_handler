@@ -16,6 +16,7 @@ use utils::{command_executor::command_exists, env_helper::ENV_DATA};
 
 mod api;
 mod device_adapter;
+mod services;
 mod utils;
 
 #[tokio::main]
@@ -41,8 +42,8 @@ async fn main() -> Result<(), Error> {
                 .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(DefaultBodyLimit::disable())
-        .merge(api::handlers::initialize_router())
-        .merge(api::maestro_handlers::initialize_router());
+        .nest("/maestro", api::maestro_handlers::initialize_router())
+        .merge(api::handlers::initialize_router());
 
     let address = SocketAddr::from(([0, 0, 0, 0], 42069));
     tracing::info!("Listening on {}", &address);

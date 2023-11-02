@@ -8,7 +8,10 @@ use std::{
 use axum::{extract::Multipart, http::StatusCode, response::Response, routing::post, Router};
 use tracing::{error, info};
 
-use crate::utils::{commands::install_bundle_all, env_helper::ENV_DATA, multipart_helper};
+use crate::{
+    services,
+    utils::{commands::install_bundle_all, env_helper::ENV_DATA, multipart_helper},
+};
 
 /// Initializes a new instance of [Router] to handle the rest APIs
 pub fn initialize_router() -> Router {
@@ -22,6 +25,8 @@ async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode>
             Some(f) => f,
             None => continue,
         };
+
+        _ = services::bundle_service::extract_bundle(&file);
 
         let download_dir = &ENV_DATA.lock().unwrap().download_default_dir;
         if !Path::new(&download_dir).exists() {

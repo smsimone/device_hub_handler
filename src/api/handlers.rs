@@ -29,19 +29,6 @@ async fn upload_bundle(mut multipart: Multipart) -> Result<Response, StatusCode>
         _ = services::bundle_service::extract_bundle(&file);
 
         let download_dir = &ENV_DATA.lock().unwrap().download_default_dir;
-        if !Path::new(&download_dir).exists() {
-            match std::fs::create_dir_all(&download_dir) {
-                Ok(_) => info!("Created download directory {}", &download_dir),
-                Err(err) => {
-                    error!(
-                        "Failed to create download dir {}:\n{}",
-                        &download_dir,
-                        err.to_string()
-                    );
-                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
-                }
-            }
-        }
 
         let temp_file_path = format!("{}/{}", &download_dir, file.name);
 

@@ -29,4 +29,3 @@ pub async fn extract_file(field: Field<'_>) -> Option<ExtractedFile> {
         bytes,
     })
 }
-

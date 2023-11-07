@@ -30,13 +30,13 @@ pub fn save_file(file: &ExtractedFile, directory: &String) -> Result<(), String>
         }
     }
 
-    match File::create(&temp_file_path)
+    return match File::create(&temp_file_path)
         .map_err(|err| err.to_string())
         .map(|mut cf| cf.write_all(&file.bytes.to_vec()))
     {
         Ok(_) => {
             info!("Written test file {}", file.name);
-            return Ok(());
+            Ok(())
         }
         Err(err) => {
             error!(
@@ -44,7 +44,7 @@ pub fn save_file(file: &ExtractedFile, directory: &String) -> Result<(), String>
                 file.name,
                 err.to_string()
             );
-            return Err(err);
+            Err(err)
         }
-    }
+    };
 }

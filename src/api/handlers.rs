@@ -1,9 +1,9 @@
 use std::{
-    fs::{read_dir, DirEntry},
+    fs::{DirEntry, read_dir},
     thread,
 };
 
-use axum::{extract::Multipart, http::StatusCode, response::Response, routing::post, Router};
+use axum::{extract::Multipart, http::StatusCode, response::Response, Router, routing::post};
 use tracing::{error, info};
 
 use crate::{

@@ -20,6 +20,8 @@ pub trait IAdapter: Sync + Send {
 
     fn unlock_device(&self);
 
+    fn get_device_id(&self) -> String;
+
     fn open_app(&self, app_name: &String);
 
     fn send_keyevent(&self, key_event: &String);

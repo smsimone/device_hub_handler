@@ -2,8 +2,8 @@ use axum::{
     extract::{Multipart, Path},
     http::StatusCode,
     response::Response,
-    routing::post,
     Router,
+    routing::post,
 };
 use tracing::info;
 
@@ -33,5 +33,6 @@ async fn upload_test_file(mut multipart: Multipart) -> Result<Response, StatusCo
 
 async fn run_test(Path(test_name): Path<String>) -> Result<StatusCode, StatusCode> {
     info!("Running test {}", test_name);
+    services::maestro_service::execute_test(&test_name);
     Ok(StatusCode::OK)
 }

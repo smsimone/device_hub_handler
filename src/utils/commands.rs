@@ -1,12 +1,17 @@
 use std::{
+    net::Ipv4Addr,
     path::Path,
     process::Command,
     thread::{self, JoinHandle},
 };
 
+use adb_client::AdbTcpConnection;
 use log::{error, info};
 
-use crate::device_adapter::i_adapter::{get_adapter, DecodedDevice, Device, IAdapter, OsType};
+use crate::device_adapter::{
+    android,
+    i_adapter::{DecodedDevice, Device, get_adapter, IAdapter, OsType},
+};
 
 /// Find all devices with the same os defined in filter. If filter is [None], all device types will
 /// be returned
@@ -35,6 +40,36 @@ pub fn find_devices(filter: Option<OsType>) -> Vec<Box<dyn IAdapter>> {
         .collect();
 
     return devices;
+}
+
+pub fn get_android_devices() -> Result<Vec<Box<dyn IAdapter>>, String> {
+    if let Ok(mut conn) = AdbTcpConnection::new(Ipv4Addr::from([127, 0, 0, 1]), 5037)
+        .map_err(|err| error!("Failed to connect to adb server: {}", err))
+    {
+        match conn.devices() {
+            Ok(devices) => {
+                info!("Found {} devices with adbconnection", devices.len());
+                let mut data: Vec<Box<dyn IAdapter>> = vec![];
+                for element in devices {
+                    data.push(Box::new(android::adapter::AdbAdapter {
+                        device: Device {
+                            name: String::from("device"),
+                            id: element.identifier,
+                            os_type: OsType::Android,
+                            emulator: false,
+                        },
+                    }));
+                }
+                return Ok(data);
+            }
+            Err(err) => {
+                error!("Failed to look for connected devices: {}", err);
+                return Err(format!("Failed to look for connected devices: {}", err));
+            }
+        }
+    }
+
+    return Err(String::from("Failed to connect to adb"));
 }
 
 fn install_bundle(adapter: &dyn IAdapter, bundle_path: &String) -> Result<(), String> {

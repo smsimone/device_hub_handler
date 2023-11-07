@@ -5,7 +5,9 @@ use std::{
 
 use log::{error, info};
 
-use super::{command_executor, env_helper::ENV_DATA};
+use crate::utils::configs::CONFIGS;
+
+use super::command_executor;
 
 /// Extracts the apks file in the path given and returns the app package name
 pub fn extract_package_name(apks_path: &String) -> Result<String, String> {
@@ -58,7 +60,7 @@ fn extract_apks(apks_path: &String) -> Result<String, String> {
                     let cleared_name = name.replace(".apk", "");
                     format!(
                         "{}/{}",
-                        ENV_DATA.lock().unwrap().extract_output_dir,
+                        CONFIGS.lock().unwrap().bundles_config.extraction_folder,
                         cleared_name
                     )
                 }
@@ -73,12 +75,12 @@ fn extract_apks(apks_path: &String) -> Result<String, String> {
         "tar -xvf {} -C {}",
         apks_path, extraction_directory
     ))
-    .map(|_| {
-        info!("Extracted apks in path {}", extraction_directory);
-        extraction_directory
-    })
-    .map_err(|err| {
-        error!("Failed to extract apks: {}", err.to_string());
-        err.to_string()
-    })
+        .map(|_| {
+            info!("Extracted apks in path {}", extraction_directory);
+            extraction_directory
+        })
+        .map_err(|err| {
+            error!("Failed to extract apks: {}", err.to_string());
+            err.to_string()
+        })
 }

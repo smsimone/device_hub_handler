@@ -6,11 +6,12 @@ use std::{
 
 use tracing::{error, info};
 
-use crate::utils::{env_helper::ENV_DATA, multipart_helper::ExtractedFile};
+use crate::utils::multipart_helper::ExtractedFile;
+use crate::utils::configs::CONFIGS;
 
 /// Extracts the given file and if it's all ok returns the path to the folder extracted
 pub fn extract_bundle(file: &ExtractedFile) -> Result<PathBuf, String> {
-    let download_dir = &ENV_DATA.lock().unwrap().download_default_dir;
+    let download_dir = &CONFIGS.lock().unwrap().bundles_config.download_folder;
 
     if let Err(err) = ensure_directory_exists(download_dir) {
         return Err(err);
@@ -81,7 +82,7 @@ pub fn extract_bundle(file: &ExtractedFile) -> Result<PathBuf, String> {
 
 fn ensure_directory_exists(dir_path: &String) -> Result<(), String> {
     if !Path::new(&dir_path).exists() {
-        match std::fs::create_dir_all(&dir_path) {
+        match create_dir_all(&dir_path) {
             Ok(_) => info!("Created directory {}", &dir_path),
             Err(err) => {
                 error!(

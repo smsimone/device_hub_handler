@@ -1,16 +1,17 @@
-use glob::glob;
-use plist::Value;
 use std::{
     io::{BufReader, Cursor, Read},
     path::Path,
 };
 
+use glob::glob;
 use log::{error, info};
+use plist::Value;
 
 use crate::{
     device_adapter::i_adapter::{Device, DeviceStatus, IAdapter, ScreenRequest},
-    utils::{command_executor, env_helper::ENV_DATA},
+    utils::command_executor,
 };
+use crate::utils::configs::CONFIGS;
 
 pub struct IosAdapter {
     pub device: Device,
@@ -68,7 +69,7 @@ impl IosAdapter {
 
         let extraction_path = format!(
             "{}/{}",
-            ENV_DATA.lock().unwrap().extract_output_dir,
+            CONFIGS.lock().unwrap().bundles_config.extraction_folder,
             self.device.id
         );
         info!("Extracting application into {}", extraction_path);
@@ -102,9 +103,9 @@ impl IosAdapter {
                 "{}/**/Info.plist",
                 &extraction_folder.as_os_str().to_str().unwrap()
             )
-            .as_str(),
+                .as_str(),
         )
-        .expect("Failed to read glob");
+            .expect("Failed to read glob");
 
         let item = info_plists.min_by_key(|f| f.as_ref().unwrap().display().to_string().len());
 
@@ -127,9 +128,21 @@ impl IosAdapter {
 }
 
 impl IAdapter for IosAdapter {
+    fn get_os_type(&self) -> crate::device_adapter::i_adapter::OsType {
+        self.device.os_type
+    }
+
+    fn get_device_name(&self) -> String {
+        String::from(&self.device.name)
+    }
+
     fn toggle_screen(&self, _request: &ScreenRequest) {}
 
     fn unlock_device(&self) {}
+
+    fn get_device_id(&self) -> String {
+        String::from(&self.device.id)
+    }
 
     fn open_app(&self, app_name: &String) {
         match command_executor::exec(&format!(
@@ -167,26 +180,18 @@ impl IAdapter for IosAdapter {
             _ = self.uninstall_app(&bundle_name);
         }
 
-        match command_executor::exec(&format!(
+        return match command_executor::exec(&format!(
             "idb install --udid {} {}",
             self.device.id, &bundle_path
         )) {
             Ok(_) => {
                 info!("Installed bundle on ios device");
-                return Ok(bundle_name);
+                Ok(bundle_name)
             }
             Err(err) => {
                 error!("Failed to install bundle on ios device: {}", err);
-                return Err(format!("Failed to install bundle on ios device: {}", err));
+                Err(format!("Failed to install bundle on ios device: {}", err))
             }
-        }
-    }
-
-    fn get_device_name(&self) -> String {
-        String::from(&self.device.name)
-    }
-
-    fn get_os_type(&self) -> crate::device_adapter::i_adapter::OsType {
-        self.device.os_type
+        };
     }
 }

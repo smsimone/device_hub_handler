@@ -1,22 +1,26 @@
-use axum::{extract::DefaultBodyLimit, Router, Server};
 use std::{
-    fs::{create_dir_all, read_dir, remove_dir_all, DirEntry},
+    fs::{create_dir_all, DirEntry, read_dir, remove_dir_all},
     io::Error,
     net::SocketAddr,
     path::Path,
     process::exit,
 };
+
+use axum::{extract::DefaultBodyLimit, Router, Server};
+use dialoguer::Confirm;
+use log::{error, info, warn};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::Level;
 
-use dialoguer::Confirm;
+use utils::command_executor::command_exists;
 
-use log::{error, info, warn};
-use utils::{command_executor::command_exists, env_helper::ENV_DATA};
+use crate::utils::commands::get_android_devices;
+use crate::utils::configs::CONFIGS;
 
 mod api;
 mod device_adapter;
 mod services;
+mod test;
 mod utils;
 
 #[tokio::main]
@@ -26,7 +30,16 @@ async fn main() -> Result<(), Error> {
         .compact()
         .init();
 
-    validate_depdencies();
+
+    if let Ok(devices) = get_android_devices() {
+        info!("Got {} devices", devices.len());
+        for ele in devices {
+            info!("ID: {}", ele.get_device_id());
+        }
+        panic!("Failed to get devices");
+    }
+
+    validate_dependencies();
     match check_extraction_path() {
         Ok(_) => {}
         Err(err) => {
@@ -55,8 +68,8 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn check_extraction_path() -> Result<(), Error> {
-    let extract_path = String::from(&ENV_DATA.lock().unwrap().extract_output_dir);
+fn check_extraction_path() -> Result<(), String> {
+    let extract_path = String::from(&CONFIGS.lock().unwrap().bundles_config.extraction_folder);
 
     let dir_path = Path::new(&extract_path);
     if !dir_path.exists() {
@@ -67,7 +80,7 @@ fn check_extraction_path() -> Result<(), Error> {
             }
             Err(err) => {
                 error!("Failed to create directory: {}", err);
-                Err(err)
+                Err(format!("Failed to create directory: {}", err))
             }
         }
     } else {
@@ -87,7 +100,8 @@ fn check_extraction_path() -> Result<(), Error> {
                     "The directory {} is not empty, do you want to delete its content?",
                     &extract_path
                 ))
-                .interact()?;
+                .interact()
+                .map_err(|err| err.to_string())?;
 
             if should_erase {
                 match remove_dir_all(&extract_path) {
@@ -114,7 +128,7 @@ fn check_extraction_path() -> Result<(), Error> {
 }
 
 /// Checks whether all the required binaries are installed and present in PATH
-fn validate_depdencies() {
+fn validate_dependencies() {
     // FIXME: should remove this dependency to use just adb and idb
     // Used to find all connected devices
     if command_exists(&"flutter".to_string()).is_err() {
